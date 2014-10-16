@@ -5,6 +5,7 @@ from getpass import getpass as getswipe
 import psycopg2
 import os
 import re
+import time
 
 # Will be set in main
 conn = None # Connection to db
@@ -37,7 +38,8 @@ number
 
 {
     name : {String, None}
-    last_checkin : {Date, None}
+    email : {String, None}
+    checked_in : {Boolean, None}
     points : {Int, None}
 }
 '''
@@ -50,7 +52,7 @@ def fetch_info (cardnum):
     # Query the database, we should only have 
     # one hit
     db.execute(
-        """SELECT name, last_checkin, points, card_number 
+        """SELECT name, email, checked_in, points, card_number 
            FROM students
            WHERE card_number = (%s);""", (cardnum,))
 
@@ -60,7 +62,67 @@ def fetch_info (cardnum):
     if hit == None:
         return None
     else:
-        return { 'name' : hit[0], 'last_checkin' : hit[1], 'points' : hit[2] }
+        # We don't need to return the card number
+        return { 'name' : hit[0], 'email' : hit[1], 'checked_in' : hit[2], 'points' : hit[3] }
+
+'''
+Create a new student in the DB
+@param cardnumber {String}
+'''
+def insert_student (cardnum):
+    # Bail if connection with DB is lost
+    if conn.closed:
+        print_error ('Connection with DB was lost! Please restart application')
+        exit(1)
+
+    # Create new row for student using their cardnumber
+    db.execute(
+        """INSERT INTO students (card_number)
+           VALUES (%s);""", (cardnum,))
+    
+    # Commit changes
+    conn.commit()
+
+'''
+Update a student's name and email
+@param cardnum {String}
+@param name {String}
+@param email {String}
+'''
+def update_student_contact (cardnum, name, email):
+    # Bail if connection with DB is lost
+    if conn.closed:
+        print_error ('Connection with DB was lost! Please restart application')
+        exit(1)
+
+    # Update DB with name and email
+    db.execute(
+        """UPDATE students
+           SET name = %s, email = %s
+           WHERE card_number = %s;""", (name, email, cardnum))
+
+    # Commit changes
+    conn.commit()
+
+'''
+Update a student's checked_in status
+@param cardnum {String}
+@param checkedin {Boolean}
+'''
+def update_student_checkin (cardnum, checkedin):
+    # Bail if connection with DB is lost
+    if conn.closed:
+        print_error ('Connection with DB was lost! Please restart application')
+        exit(1)
+
+    # Update DB with checkin
+    db.execute(
+        """UPDATE students
+           SET checked_in = %s
+           WHERE card_number = %s;""", (checkedin, cardnum))
+
+    # Commit changes
+    conn.commit()
 
 '''
 Print strings in different colors
@@ -76,8 +138,14 @@ def print_success (string):
 def print_status (string):
     print '{}{}{}{}'.format(Fore.CYAN, Style.BRIGHT, string, Style.RESET_ALL)
 
-def print_request (string):
-    print '{}{}{}{}'.format(Fore.YELLOW, Style.BRIGHT, string, Style.RESET_ALL)
+'''
+Ask for string input
+@param request {String}
+@return {String}
+'''
+def get_info (request):
+    response = raw_input('{}{}{}{} => '.format(Fore.YELLOW, Style.BRIGHT, request, Style.RESET_ALL))
+    return response
 
 if __name__ == '__main__':
     
@@ -103,6 +171,11 @@ if __name__ == '__main__':
     db = conn.cursor()
         
     print_success ('Ready for action!')
+    
+    # Some sleep to see success message
+    time.sleep(1)
+    # Clear screen
+    os.system('clear')
 
     # Main event loop
     while 1:
@@ -118,5 +191,51 @@ if __name__ == '__main__':
 
         student_info = fetch_info(card_number)
         
-        # If we didn't have any info on the student, 
-        # get it from them and push to the database
+        # If we are missing info from the student
+        # IE name or email (don't let them modify anything else!), or 
+        # if we are missing them entirely, ask for missing required info
+        if student_info == None or student_info['name'] == None \
+                                or student_info['email'] == None:
+            # If student is missing entirely, make a model for them
+            # and create a row in the DB
+            if student_info == None:
+                student_info = {'name' : None, 'email' : None, 'checked_in' : None}
+                insert_student (card_number)
+            
+            name = None
+            email = None
+            
+            # Keep asking for name and email till student is content
+            # TODO: Some sort of verification to check for valid email
+            # and name
+            while 1:
+                # Get name and email
+                name = get_info("Enter your full name")
+                email = get_info("Enter your email")
+                print ''
+                print_status("Is the following correct?\nName: {}\nEmail: {}".format(name, email))
+                
+                # Break out if student is content
+                response = get_info("[y/n]")
+                if response.lower() == 'y':
+                    # Save responses and break
+                    student_info['name'] = name
+                    student_info['email'] = email
+                    break
+            
+            # Update DB with student contact info
+            update_student_contact (card_number, name, email) 
+       
+        # Figure out if the student has already logged in today
+        # if so, let them know they have already!
+        if student_info['checked_in'] == True:
+            print_success ("You have already checked in {}!".format(student_info['name']))
+        else:
+            update_student_checkin (card_number, True)
+            print_success ("Thanks for checking in {}!".format(student_info['name']))
+
+        # Some sleep so person can see results
+        time.sleep(1)
+
+        # Clear screen
+        os.system('clear')
