@@ -68,16 +68,16 @@ Print strings in different colors
 @return none
 '''
 def print_error (string):
-    print '{}{}{}'.format(Fore.RED, Style.BRIGHT, string)
-    print Style.RESET_ALL
+    print '{}{}{}{}'.format(Fore.RED, Style.BRIGHT, string, Style.RESET_ALL)
 
 def print_success (string):
-    print '{}{}{}'.format(Fore.GREEN, Style.BRIGHT, string)
-    print Style.RESET_ALL
+    print '{}{}{}{}'.format(Fore.GREEN, Style.BRIGHT, string, Style.RESET_ALL)
 
 def print_status (string):
-    print '{}{}{}'.format(Fore.CYAN, Style.BRIGHT, string)
-    print Style.RESET_ALL
+    print '{}{}{}{}'.format(Fore.CYAN, Style.BRIGHT, string, Style.RESET_ALL)
+
+def print_request (string):
+    print '{}{}{}{}'.format(Fore.YELLOW, Style.BRIGHT, string, Style.RESET_ALL)
 
 if __name__ == '__main__':
     
