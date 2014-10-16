@@ -30,6 +30,39 @@ def parse_number (carddump):
         return None
 
 '''
+Fetches a student with the given r'card
+number
+@param cardnum {String}
+@return {Dict, None}
+
+{
+    name : {String, None}
+    last_checkin : {Date, None}
+    points : {Int, None}
+}
+'''
+def fetch_info (cardnum):
+    # Bail if connection with DB is lost
+    if conn.closed:
+        print_error ('Connection with DB was lost! Please restart application')
+        exit(1)
+
+    # Query the database, we should only have 
+    # one hit
+    db.execute(
+        """SELECT name, last_checkin, points, card_number 
+           FROM students
+           WHERE card_number = (%s);""", (cardnum,))
+
+    # If we didn't get a hit, return None
+    # otherwise, return student data
+    hit = db.fetchone()
+    if hit == None:
+        return None
+    else:
+        return { 'name' : hit[0], 'last_checkin' : hit[1], 'points' : hit[2] }
+
+'''
 Print strings in different colors
 @param string {String}
 @return none
@@ -83,3 +116,7 @@ if __name__ == '__main__':
            print_error ("Invalid swipe. Try again") 
            continue
 
+        student_info = fetch_info(card_number)
+        
+        # If we didn't have any info on the student, 
+        # get it from them and push to the database
