@@ -2,7 +2,13 @@
 
 from colorama import Fore, Back, Style
 from getpass import getpass as getswipe
+import psycopg2
+import os
 import re
+
+# Will be set in main
+conn = None # Connection to db
+db = None   # Actual interface to db
 
 '''
 Extracts r'card number from card swipe
@@ -41,6 +47,30 @@ def print_status (string):
     print Style.RESET_ALL
 
 if __name__ == '__main__':
+    
+    # Sanity checks
+    if not os.getenv('MEMBER_DB_NAME') or \
+       not os.getenv('MEMBER_DB_USER') or \
+       not os.getenv('MEMBER_DB_PASS') or \
+       not os.getenv('MEMBER_DB_HOST') or \
+       not os.getenv('MEMBER_DB_PORT'):
+        print_error('Please set your MEMBER_DB environment variables. See github README for more info')
+        exit(1)
+    
+    print_status ('Connecting to DB... Kill me if I take waaaay to long...')
+    
+    # Establish a connection to our DB
+    global conn, db
+    conn = psycopg2.connect(database=os.getenv('MEMBER_DB_NAME'), \
+                            user=os.getenv('MEMBER_DB_USER'), \
+                            password=os.getenv('MEMBER_DB_PASS'), \
+                            host=os.getenv('MEMBER_DB_HOST'), \
+                            port=os.getenv('MEMBER_DB_PORT'))
+
+    db = conn.cursor()
+        
+    print_success ('Ready for action!')
+
     # Main event loop
     while 1:
         card_dump = getswipe("Swipe your R'card ID\n")
@@ -52,3 +82,4 @@ if __name__ == '__main__':
         if card_number == None:
            print_error ("Invalid swipe. Try again") 
            continue
+
