@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from colorama import Fore, Back, Style
 from getpass import getpass as getswipe
 import re
 
@@ -24,4 +25,6 @@ def parse_number (carddump):
 
 if __name__ == '__main__':
     # Main event loop
-    while 1    
+    while 1:
+        card_dump = getswipe("Swipe your R'card ID\n")
+        print parse_number(card_dump)
