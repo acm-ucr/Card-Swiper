@@ -6,6 +6,7 @@ import psycopg2
 import os
 import re
 import time
+from db_config import *
 
 # Will be set in main
 conn = None # Connection to db
@@ -18,7 +19,7 @@ string
 @return {String,None}
 '''
 def parse_number (carddump):
-    # R'card number is always 16 numerical digits 
+    # R'card number is always 16 numerical digits
     # long and starts with %B. %B should be the first
     # characters in carddump
     regex = '%B([0-9]{16}).*'
@@ -49,10 +50,10 @@ def fetch_info (cardnum):
         print_error ('Connection with DB was lost! Please restart application')
         exit(1)
 
-    # Query the database, we should only have 
+    # Query the database, we should only have
     # one hit
     db.execute(
-        """SELECT name, email, checked_in, points, card_number 
+        """SELECT name, email, checked_in, points, card_number
            FROM students
            WHERE card_number = (%s);""", (cardnum,))
 
@@ -79,7 +80,7 @@ def insert_student (cardnum):
     db.execute(
         """INSERT INTO students (card_number)
            VALUES (%s);""", (cardnum,))
-    
+
     # Commit changes
     conn.commit()
 
@@ -148,30 +149,24 @@ def get_info (request):
     return response
 
 if __name__ == '__main__':
-    
-    # Sanity checks
-    if not os.getenv('MEMBER_DB_NAME') or \
-       not os.getenv('MEMBER_DB_USER') or \
-       not os.getenv('MEMBER_DB_PASS') or \
-       not os.getenv('MEMBER_DB_HOST') or \
-       not os.getenv('MEMBER_DB_PORT'):
-        print_error('Please set your MEMBER_DB environment variables. See github README for more info')
-        exit(1)
-    
+
     print_status ('Connecting to DB... Kill me if I take waaaay to long...')
-    
+
     # Establish a connection to our DB
     global conn, db
-    conn = psycopg2.connect(database=os.getenv('MEMBER_DB_NAME'), \
-                            user=os.getenv('MEMBER_DB_USER'), \
-                            password=os.getenv('MEMBER_DB_PASS'), \
-                            host=os.getenv('MEMBER_DB_HOST'), \
-                            port=os.getenv('MEMBER_DB_PORT'))
+    try:
+        conn = psycopg2.connect(database=DATABASE, \
+                           user=USER, \
+                           password=PASSWORD, \
+                           host=HOST, \
+                           port=PORT)
+    except NameError:
+        print("Your config file is not set properly. Or you need to contact Kyle for the info.")
 
     db = conn.cursor()
-        
+
     print_success ('Ready for action!')
-    
+
     # Some sleep to see success message
     time.sleep(1)
     # Clear screen
@@ -181,18 +176,18 @@ if __name__ == '__main__':
     while 1:
         card_dump = getswipe("Swipe your R'card ID\n")
         card_number = parse_number(card_dump)
-        
+
         # If we were NOT able to get a valid number
         # from the swipe, let the user know and skip everything
         # else
         if card_number == None:
-           print_error ("Invalid swipe. Try again") 
+           print_error ("Invalid swipe. Try again")
            continue
 
         student_info = fetch_info(card_number)
-        
+
         # If we are missing info from the student
-        # IE name or email (don't let them modify anything else!), or 
+        # IE name or email (don't let them modify anything else!), or
         # if we are missing them entirely, ask for missing required info
         if student_info == None or student_info['name'] == None \
                                 or student_info['email'] == None:
@@ -201,10 +196,10 @@ if __name__ == '__main__':
             if student_info == None:
                 student_info = {'name' : None, 'email' : None, 'checked_in' : None}
                 insert_student (card_number)
-            
+
             name = None
             email = None
-            
+
             # Keep asking for name and email till student is content
             # TODO: Some sort of verification to check for valid email
             # and name
@@ -214,7 +209,7 @@ if __name__ == '__main__':
                 email = get_info("Enter your email")
                 print ''
                 print_status("Is the following correct?\nName: {}\nEmail: {}".format(name, email))
-                
+
                 # Break out if student is content
                 response = get_info("[y/n]")
                 if response.lower() == 'y':
@@ -222,20 +217,20 @@ if __name__ == '__main__':
                     student_info['name'] = name
                     student_info['email'] = email
                     break
-            
+
             # Update DB with student contact info
-            update_student_contact (card_number, name, email) 
-       
+            update_student_contact (card_number, name, email)
+
         # Figure out if the student has already logged in today
         # if so, let them know they have already!
         if student_info['checked_in'] == True:
-            print_success ("You have already checked in {}!".format(student_info['name']))
+            print_success ("You have already checked in, {}!".format(student_info['name']))
         else:
             update_student_checkin (card_number, True)
-            print_success ("Thanks for checking in {}!".format(student_info['name']))
+            print_success ("Thanks for checking in, {}!".format(student_info['name']))
 
         # Some sleep so person can see results
-        time.sleep(1)
+        time.sleep(2)
 
         # Clear screen
         os.system('clear')
