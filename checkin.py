@@ -23,7 +23,7 @@ def get_checked_in ():
 
     # Get data from DB
     db.execute(
-        """SELECT name FROM students
+        """SELECT name,email FROM students
            WHERE checked_in = true""")
 
     return db.fetchall()
@@ -83,7 +83,12 @@ if __name__ == '__main__':
 
     f = open(str(date), 'w+')
     for name in names:
-        f.write(name[0]+"\n")
+        f.write(name[0]+" "+name[1]+"\n")
+    f.close()
+
+    num_lines = sum(1 for line in open(str(date)))
+    f = open(str(date), 'a+')
+    f.write(str(num_lines)+"\n")
     f.close()
 
     print_success('Written to file')
